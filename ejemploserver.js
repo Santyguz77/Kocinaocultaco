@@ -11,19 +11,20 @@ const __dirname = dirname(__filename);
 
 const app = express();
 app.use(cors());
+// Aumentar el límite de tamaño del body para permitir imágenes (50MB)
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
-// Servir archivos estáticos
+// NUEVO: Servir archivos estáticos para PWA
 app.use(express.static(__dirname));
 
-// Servir manifest.json
+// NUEVO: Servir manifest.json con tipo MIME correcto
 app.get('/manifest.json', (req, res) => {
   res.setHeader('Content-Type', 'application/manifest+json');
   res.sendFile(join(__dirname, 'manifest.json'));
 });
 
-// Servir service worker
+// NUEVO: Servir service worker
 app.get('/service-worker.js', (req, res) => {
   res.setHeader('Content-Type', 'application/javascript');
   res.setHeader('Service-Worker-Allowed', '/');
@@ -32,35 +33,36 @@ app.get('/service-worker.js', (req, res) => {
 
 // Ruta de prueba
 app.get("/", (req, res) => {
-  res.send("🍽️ Servidor de Restaurante funcionando correctamente");
+  res.send("Servidor funcionando correctamente");
 });
 
-// Conexión con la base de datos SQLite
+// --- Conexión con la base de datos SQLite ---
 const db = await open({
-  filename: "./restaurante.db",
+  filename: "./mipc.db",
   driver: sqlite3.Database
 });
 
 // Crear tablas si no existen
 await db.exec(`
-  CREATE TABLE IF NOT EXISTS menu_items (id TEXT PRIMARY KEY, data TEXT);
-  CREATE TABLE IF NOT EXISTS tables (id TEXT PRIMARY KEY, data TEXT);
-  CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, data TEXT);
-  CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, data TEXT);
-  CREATE TABLE IF NOT EXISTS waiters (id TEXT PRIMARY KEY, data TEXT);
-  CREATE TABLE IF NOT EXISTS config (id TEXT PRIMARY KEY, data TEXT);
-  CREATE TABLE IF NOT EXISTS cash_closures (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS orders (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS clients (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS transactions (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS equipments (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS inventory (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS inventory_movements (id TEXT PRIMARY KEY, data TEXT);
+CREATE TABLE IF NOT EXISTS invoices (id TEXT PRIMARY KEY, data TEXT);
 `);
 
-// Tablas permitidas
+// --- Endpoints genéricos ---
+/* NUEVO: allowlist para evitar inyección en nombre de tabla */
 const ALLOWED_TABLES = new Set([
-  "menu_items",
-  "tables",
   "orders",
+  "clients",
   "transactions",
-  "waiters",
-  "config",
-  "cash_closures"
+  "equipments",
+  "inventory",
+  "inventory_movements",
+  "invoices"
 ]);
 
 // Obtener todos los registros
@@ -82,6 +84,7 @@ app.post("/api/:table", async (req, res) => {
   if (!ALLOWED_TABLES.has(table)) return res.status(400).json({ error: "Tabla no permitida" });
   if (!Array.isArray(items)) return res.status(400).json({ error: "Formato inválido" });
   try {
+    /* NUEVO: transacción */
     await db.exec("BEGIN");
     await db.run(`DELETE FROM ${table}`);
     const stmt = await db.prepare(`INSERT INTO ${table} (id, data) VALUES (?, ?)`);
@@ -97,7 +100,7 @@ app.post("/api/:table", async (req, res) => {
   }
 });
 
-// Actualizar/crear UN SOLO registro
+// NUEVO: Endpoint para actualizar/crear UN SOLO registro
 app.put("/api/:table/:id", async (req, res) => {
   const { table, id } = req.params;
   const item = req.body;
@@ -115,7 +118,7 @@ app.put("/api/:table/:id", async (req, res) => {
   }
 });
 
-// Eliminar UN SOLO registro
+// NUEVO: Endpoint para eliminar UN SOLO registro
 app.delete("/api/:table/:id", async (req, res) => {
   const { table, id } = req.params;
   if (!ALLOWED_TABLES.has(table)) return res.status(400).json({ error: "Tabla no permitida" });
@@ -127,5 +130,4 @@ app.delete("/api/:table/:id", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => console.log(`✅ API de Restaurante v1.0.1 corriendo en puerto ${PORT}`));
+app.listen(3000, () => console.log("✅ API corriendo en puerto 3000 versión actualizada 2.0"));

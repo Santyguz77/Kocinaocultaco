@@ -4,6 +4,7 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Panel de Control</title>
+	<link rel="icon" href="/icon-192.png" type="image/png">
 	<link rel="stylesheet" href="styles.css">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
 	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -766,6 +767,87 @@
 			method: 'all'
 		};
 		let financeViewMode = 'daily';
+
+		function ensureUtilsHelpers() {
+			const globalUtils = window.Utils || {};
+			const defaultTz = window.APP_TIMEZONE || 'America/Bogota';
+			if (typeof globalUtils.getDateKey !== 'function') {
+				globalUtils.getDateKey = function(date = new Date(), timeZone = defaultTz) {
+					return new Intl.DateTimeFormat('en-CA', {
+						timeZone,
+						year: 'numeric',
+						month: '2-digit',
+						day: '2-digit'
+					}).format(date);
+				};
+			}
+			if (typeof globalUtils.getMonthKey !== 'function') {
+				globalUtils.getMonthKey = function(date = new Date(), timeZone = defaultTz) {
+					const parts = new Intl.DateTimeFormat('en-CA', {
+						timeZone,
+						year: 'numeric',
+						month: '2-digit'
+					}).formatToParts(date);
+					const year = parts.find(p => p.type === 'year')?.value || '0000';
+					const month = parts.find(p => p.type === 'month')?.value || '01';
+					return `${year}-${month}`;
+				};
+			}
+			if (typeof globalUtils.getDateKeyFromISO !== 'function') {
+				globalUtils.getDateKeyFromISO = function(isoString, timeZone = defaultTz) {
+					if (!isoString) return '';
+					return globalUtils.getDateKey(new Date(isoString), timeZone);
+				};
+			}
+			if (typeof globalUtils.getMonthKeyFromISO !== 'function') {
+				globalUtils.getMonthKeyFromISO = function(isoString, timeZone = defaultTz) {
+					if (!isoString) return '';
+					return globalUtils.getMonthKey(new Date(isoString), timeZone);
+				};
+			}
+			if (typeof globalUtils.formatCurrency !== 'function') {
+				globalUtils.formatCurrency = function(amount) {
+					return new Intl.NumberFormat('es-MX', {
+						style: 'currency',
+						currency: 'MXN'
+					}).format(amount || 0);
+				};
+			}
+			if (typeof globalUtils.formatDate !== 'function') {
+				globalUtils.formatDate = function(date) {
+					return new Intl.DateTimeFormat('es-MX', {
+						year: 'numeric',
+						month: '2-digit',
+						day: '2-digit',
+						hour: '2-digit',
+						minute: '2-digit'
+					}).format(new Date(date));
+				};
+			}
+			if (typeof globalUtils.formatDateKeyForChart !== 'function') {
+				globalUtils.formatDateKeyForChart = function(dateKey, timeZone = defaultTz) {
+					if (!dateKey) return '';
+					const [year, month, day] = dateKey.split('-').map(Number);
+					const anchor = new Date(Date.UTC(year, (month || 1) - 1, day || 1, 12, 0, 0));
+					return new Intl.DateTimeFormat('es-MX', {
+						timeZone,
+						weekday: 'short',
+						day: 'numeric'
+					}).format(anchor);
+				};
+			}
+			if (typeof globalUtils.showNotification !== 'function') {
+				globalUtils.showNotification = function(message, type = 'info') {
+					console.log(`[${type.toUpperCase()}] ${message}`);
+					if (type === 'error') {
+						alert(message);
+					}
+				};
+			}
+			window.Utils = globalUtils;
+		}
+
+		ensureUtilsHelpers();
 
 		function renderStatusPill(status) {
 			const map = {
